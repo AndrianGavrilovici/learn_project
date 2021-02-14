@@ -18,11 +18,10 @@ const App = () => {
                 </Nav>
             </Navbar>
             <Switch>
-                <Route exact path="/project1" component={Project1} />
+                <Route path="/project1" component={Project1} />
                 <Route path="/project2" component={Project2} />
                 <Route path="/project3" component={Project3} />
                 <Route path="/addnewperson" component={AddNewPerson} />
-
                 <Route path="/editperson/:id" component={EditPerson} />
             </Switch>
         </Router>

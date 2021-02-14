@@ -1,75 +1,81 @@
-import React, { useState, useEffect } from "react";
-import { Container, Form, Button, Row, Col, Alert } from "react-bootstrap";
+import React, { useState } from "react";
+import { Container, Form, Button, Row, Col } from "react-bootstrap";
+import { Link } from "react-router-dom";
+import AlertMessage from "./Alert";
+import IUser, { initialUserValues } from "./Interfaces";
+import ProcessesWebErrorStatus from "./ProcessesWebErrorStatus";
 
-const EditPerson: React.FC<any> = ({ match }) => {
-    const [visible, setVisible] = useState(false);
-    const [person, setPerson] = useState<any>([]);
-    const [loading, setLoading] = useState(true);
-    const id = match.params.id;
-    useEffect(() => {
-        fetch(`https://jsonplaceholder.typicode.com/users/${id}`)
-            .then((response) => response.json())
-            .then((data) => {
-                setPerson(data);
-                setLoading(false);
-            });
-    }, []);
+const EditPerson: React.FC<any> = ({ location }) => {
+    const [user, setUser] = useState<IUser>(
+        location.state || initialUserValues
+    );
+
+    const [showAlert, setShowAlert] = useState(false);
+    const [alertMessage, setAlertMessage] = useState("");
 
     const handleSubmit = (evt: any) => {
         evt.preventDefault();
-        const data = new FormData(evt.target);
-
-        fetch(`https://jsonplaceholder.typicode.com/users/${id}`, {
+        fetch(`https://jsonplaceholder.typicode.com/users/${user.id}`, {
             method: "PUT",
-            body: JSON.stringify({
-                name: data.get("name"),
-                username: data.get("username"),
-                email: data.get("email"),
-                address: {
-                    city: data.get("city"),
-                },
-                phone: data.get("phone"),
-                website: data.get("website"),
-                company: {
-                    name: data.get("company"),
-                },
-            }),
+            body: JSON.stringify(user),
             headers: {
                 "Content-type": "application/json; charset=UTF-8",
             },
-        }).then((response) => {
-            response.json();
-            if (response.ok && response.status === 200) {
-                setVisible(true);
-            }
-        });
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(
+                        ProcessesWebErrorStatus(
+                            response.statusText,
+                            response.status
+                        )
+                    );
+                }
+
+                setShowAlert(true);
+                setAlertMessage("User was successfully edited");
+            })
+            .catch((error) => {
+                setShowAlert(true);
+                setAlertMessage(error.message);
+                console.log(error);
+            });
     };
 
-    const onChangeHandler = (e: any) => {
-        const { name, value } = e.target;
-
-        setPerson((prevState: any) => ({
-            ...prevState,
-            [name]: value,
-        }));
-    };
-
-    if (isNaN(Number(id)) || Number(id) > 10) {
+    if (user.id === -1) {
         return (
-            <>
-                <h1 className="text-center pt-3">The address is incorrect</h1>
-            </>
+            <AlertMessage
+                classProperty="text-center text-primary m-4"
+                message="The address is incorrect"
+            />
         );
     }
 
-    if (loading) {
-        return <h2 className="pt-4">loading...</h2>;
-    }
-    return (
-        <Container className="pt-3">
-            <h2 className="text-center">Edit person</h2>
+    const onChangeHandler = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = event.target;
 
-            <Form className="mt-4" onSubmit={handleSubmit}>
+        // example: name=address.city; then nameObject[0]=address and nameObject[1]=city
+        const nameObject = name.split(".");
+        if (nameObject.length > 1 && nameObject[0] in user) {
+            setUser((prevState: any) => ({
+                ...prevState,
+                [nameObject[0]]: {
+                    ...prevState[nameObject[0]],
+                    [nameObject[1]]: value,
+                },
+            }));
+        } else {
+            setUser((prevState: IUser) => ({
+                ...prevState,
+                [name]: value,
+            }));
+        }
+    };
+
+    return (
+        <Container className="pt-5">
+            <h2 className="text-center text-primary">Edit: {user.name}</h2>
+            <Form className="mt-5" onSubmit={handleSubmit}>
                 <Form.Group>
                     <Row>
                         <Col>
@@ -79,7 +85,7 @@ const EditPerson: React.FC<any> = ({ match }) => {
                                 type="text"
                                 name="name"
                                 placeholder="Enter full name"
-                                value={person.name}
+                                value={user.name}
                                 onChange={onChangeHandler}
                             />
                         </Col>
@@ -90,7 +96,7 @@ const EditPerson: React.FC<any> = ({ match }) => {
                                 type="text"
                                 name="username"
                                 placeholder="Enter username"
-                                value={person.username}
+                                value={user.username}
                                 onChange={onChangeHandler}
                             />
                         </Col>
@@ -105,7 +111,7 @@ const EditPerson: React.FC<any> = ({ match }) => {
                                 type="email"
                                 name="email"
                                 placeholder="Enter email"
-                                value={person.email}
+                                value={user.email}
                                 onChange={onChangeHandler}
                             />
                         </Col>
@@ -113,17 +119,10 @@ const EditPerson: React.FC<any> = ({ match }) => {
                             <Form.Label>City</Form.Label>
                             <Form.Control
                                 type="text"
-                                name="city"
+                                name="address.city"
                                 placeholder="Enter city"
-                                value={person?.address?.city}
-                                onChange={(e: any) =>
-                                    setPerson((prevState: any) => ({
-                                        ...prevState,
-                                        address: {
-                                            city: e.target.value,
-                                        },
-                                    }))
-                                }
+                                value={user?.address?.city}
+                                onChange={onChangeHandler}
                             />
                         </Col>
                     </Row>
@@ -133,7 +132,7 @@ const EditPerson: React.FC<any> = ({ match }) => {
                     <Form.Control
                         name="phone"
                         placeholder="Enter phone"
-                        value={person.phone}
+                        value={user.phone}
                         onChange={onChangeHandler}
                     />
                 </Form.Group>
@@ -146,38 +145,34 @@ const EditPerson: React.FC<any> = ({ match }) => {
                                 type="text"
                                 name="website"
                                 placeholder="Enter your web site"
-                                value={person.website}
+                                value={user.website}
                                 onChange={onChangeHandler}
                             />
                         </Col>
                         <Col>
                             <Form.Label>Company name</Form.Label>
                             <Form.Control
-                                required
                                 type="text"
-                                name="company"
+                                name="company.name"
                                 placeholder="Enter your company"
-                                value={person?.company?.name}
-                                onChange={(e: any) =>
-                                    setPerson((prevState: any) => ({
-                                        ...prevState,
-                                        company: {
-                                            name: e.target.value,
-                                        },
-                                    }))
-                                }
+                                value={user?.company?.name}
+                                onChange={onChangeHandler}
                             />
                         </Col>
                     </Row>
                 </Form.Group>
-                <Alert
-                    variant="success"
-                    style={{ display: visible ? "block" : "none" }}
-                >
-                    The new person has been registered
-                </Alert>
+                <div style={{ display: showAlert ? "block" : "none" }}>
+                    <AlertMessage
+                        message={alertMessage}
+                        alertVariant="success"
+                    />
+                </div>
 
-                <Button variant="primary" type="submit">
+                <Link to="/project3">
+                    <Button variant="secondary">Cancel</Button>
+                </Link>
+
+                <Button className="ml-3" variant="primary" type="submit">
                     Save changes
                 </Button>
             </Form>

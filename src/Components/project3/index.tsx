@@ -1,36 +1,39 @@
 import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Container, Button, Table } from "react-bootstrap";
-import { useHistory } from "react-router-dom";
 import DeletePersonModal from "./DeletePersonModal";
+import AlertMessage from "./Alert";
+import IUser from "./Interfaces";
+import ProcessesWebErrorStatus from "./ProcessesWebErrorStatus";
 
 const Project3: React.FC = () => {
-    const [data, setData] = useState<any[]>([]);
-    const history = useHistory();
+    const [users, setUsers] = useState<IUser[]>([]);
+    const [alertMessage, setAlertMessage] = useState("");
 
     const Users = (props: any) => {
-        const { item } = props;
+        const user: IUser = props.item;
 
         return (
             <tr>
-                <td>{item.id}</td>
-                <td>{item.name}</td>
-                <td>{item.username}</td>
-                <td>{item.email}</td>
-                <td>{item.address.city}</td>
-                <td>{item.phone}</td>
-                <td>{item.website}</td>
-                <td>{item.company.name}</td>
+                <td>{user.id}</td>
+                <td>{user.name}</td>
+                <td>{user.username}</td>
+                <td>{user.email}</td>
+                <td>{user?.address?.city || "It's not specified"}</td>
+                <td>{user.phone || "It's not specified"}</td>
+                <td>{user.website || "It's not specified"}</td>
+                <td>{user?.company?.name || "It's not specified"}</td>
                 <td>
-                    <Button
-                        variant="success"
-                        size="sm"
-                        onClick={() => history.push(`/editperson/${item.id}`)}
+                    <Link
+                        to={{ pathname: `/editperson/${user.id}`, state: user }}
                     >
-                        Edit
-                    </Button>
+                        <Button variant="success" size="sm">
+                            Edit
+                        </Button>
+                    </Link>
                 </td>
                 <td>
-                    <DeletePersonModal id={item.id} name={item.name} />
+                    <DeletePersonModal id={user.id} name={user.name} />
                 </td>
             </tr>
         );
@@ -38,18 +41,37 @@ const Project3: React.FC = () => {
 
     useEffect(() => {
         fetch("https://jsonplaceholder.typicode.com/users")
-            .then((response) => response.json())
-            .then((data) => setData(data));
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(
+                        ProcessesWebErrorStatus(
+                            response.statusText,
+                            response.status
+                        )
+                    );
+                }
+                return response.json();
+            })
+            .then((data) => setUsers(data))
+            .catch((error) => {
+                console.log(`Error: ${error.message}`);
+                setAlertMessage(error.message);
+            });
     }, []);
+
+    if (alertMessage !== "") {
+        return (
+            <div className="m-4">
+                <AlertMessage message={alertMessage} alertVariant="danger" />
+            </div>
+        );
+    }
 
     return (
         <Container className="pt-3">
-            <Button
-                variant="primary"
-                onClick={() => history.push("/addnewperson")}
-            >
-                Add new person
-            </Button>
+            <Link to={"/addnewperson"}>
+                <Button variant="primary">Add new person</Button>
+            </Link>
 
             <Table className="mt-3" striped bordered hover size="sm">
                 <thead>
@@ -67,7 +89,7 @@ const Project3: React.FC = () => {
                     </tr>
                 </thead>
                 <tbody>
-                    {data.map((item) => (
+                    {users.map((item: IUser) => (
                         <Users key={item.id} item={item} />
                     ))}
                 </tbody>

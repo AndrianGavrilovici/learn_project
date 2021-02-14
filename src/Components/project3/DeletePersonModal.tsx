@@ -1,48 +1,73 @@
 import React, { useState } from "react";
-import { Modal, Button, Alert } from "react-bootstrap";
+import { Modal, Button } from "react-bootstrap";
+import AlertMessage from "./Alert";
+import ProcessesWebErrorStatus from "./ProcessesWebErrorStatus";
 
-type data = {
+interface PropsType {
     id: number;
     name: string;
-};
+}
 
-const DeletePersonModal: React.FC<data> = ({ id, name }) => {
-    const [show, setShow] = useState(false);
-    const [visible, setVisible] = useState(false);
+const DeletePersonModal: React.FC<PropsType> = ({ id, name }) => {
+    const [showModal, setShowModal] = useState(false);
+    const [showAlert, setShowAlert] = useState(false);
+    const [alertMessage, setAlertMessage] = useState(`${name} was deleted`);
+    const [alertVariant, setAlertVariant] = useState("success");
 
-    const handleClose = () => setShow(false);
-    const handleShow = () => setShow(true);
+    const handleClose = () => setShowModal(false);
+    const handleShow = () => setShowModal(true);
 
     const confirmDelete = () => {
         fetch(`https://jsonplaceholder.typicode.com/users/${id}`, {
             method: "DELETE",
-        }).then((result) => {
-            if (result.status === 200) {
-                setVisible((prev) => true);
-                setTimeout(() => {
-                    handleClose();
-                    setVisible((prev) => false);
-                }, 1000);
-            }
-        });
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error(
+                        ProcessesWebErrorStatus(
+                            response.statusText,
+                            response.status
+                        )
+                    );
+                }
+
+                setAlertVariant("success");
+                setShowAlert(true);
+                setAlertMessage(`${name} was deleted`);
+            })
+            .catch((error) => {
+                console.log(`Error: ${error.message}`);
+                setAlertVariant("danger");
+                setShowAlert(true);
+                setAlertMessage(error.message);
+            });
+
+        setTimeout(() => {
+            handleClose();
+            setShowAlert(false);
+        }, 2000);
     };
+
     return (
         <>
             <Button variant="danger" size="sm" onClick={handleShow}>
                 Delete
             </Button>
-            <Modal show={show} onHide={handleClose}>
+            <Modal show={showModal} onHide={handleClose}>
                 <Modal.Header closeButton>
                     <Modal.Title>Delete</Modal.Title>
                 </Modal.Header>
-                <Modal.Body>Delete {name}?</Modal.Body>
+                <Modal.Body>
+                    Delete <b>{name}</b>?
+                </Modal.Body>
                 <Modal.Footer>
-                    <Alert
-                        variant="success"
-                        style={{ display: visible ? "block" : "none" }}
-                    >
-                        {name} was deleted
-                    </Alert>
+                    <div style={{ display: showAlert ? "block" : "none" }}>
+                        <AlertMessage
+                            message={alertMessage}
+                            alertVariant={alertVariant}
+                        />
+                    </div>
+
                     <Button variant="secondary" onClick={handleClose}>
                         Cancel
                     </Button>
